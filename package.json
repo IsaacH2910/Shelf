@@ -1,0 +1,39 @@
+{
+  "name": "shelf-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A local-first personal media library for PDFs and local video",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test src/types/reading.test.ts src/lib/api.test.ts src/lib/libraryState.test.ts src/lib/readerShortcuts.test.ts",
+    "tauri": "tauri",
+    "postinstall": "node scripts/fetch-pdfium.mjs",
+    "pdfium": "node scripts/fetch-pdfium.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-virtual": "^3.14.10",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
+    "@tauri-apps/plugin-opener": "^2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.38.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.18.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tar": "^7.5.22",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

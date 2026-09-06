@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Shelf">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#2b2b31"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8b27b"/>
+      <stop offset="100%" stop-color="#b5874f"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bg)"/>
+
+  <rect x="28" y="30" width="12" height="44" rx="3" fill="url(#accent)"/>
+  <rect x="44" y="26" width="12" height="48" rx="3" fill="url(#accent)" opacity="0.95"/>
+  <rect x="60" y="34" width="12" height="40" rx="3" fill="url(#accent)" opacity="0.9"/>
+  <rect x="76" y="22" width="12" height="52" rx="3" fill="url(#accent)"/>
+
+  <rect x="24" y="80" width="80" height="10" rx="5" fill="#3a3a44"/>
+  <rect x="20" y="90" width="88" height="8" rx="4" fill="#4a4a57"/>
+</svg>

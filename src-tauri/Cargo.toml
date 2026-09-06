@@ -1,0 +1,60 @@
+[package]
+name = "Shelf"
+version = "0.1.0"
+description = "A local-first personal media library for PDFs and local video"
+authors = ["isaach"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "shelf_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# `tauri dev` builds Rust unoptimized, which makes JPEG decoding and image resizing of
+# large manga pages roughly an order of magnitude slower. Optimize dependencies only, so
+# our own crate stays debuggable.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+cc = "1"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+notify = "7"
+tokio = { version = "1", features = ["full"] }
+pdfium-render = "0.8"
+image = { version = "0.25", features = ["webp"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+sha2 = "0.10"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["fs", "cors", "set-header"] }
+tokio-util = { version = "0.7", features = ["io"] }
+argon2 = "0.5"
+subtle = "2"
+thiserror = "2"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+base64 = "0.22"
+directories = "5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+qrcode = "0.14"
+rand = "0.8"
+async-trait = "0.1"
+zhconv = "0.3"
+keyring = { version = "3", features = ["apple-native"] }
