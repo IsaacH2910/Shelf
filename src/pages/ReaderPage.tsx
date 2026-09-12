@@ -268,7 +268,7 @@ function VideoViewer({
       onMouseMove={showHud}
     >
       <header
-        className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-bg/90 to-transparent px-4 py-3 transition-opacity duration-300 ${
+        className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-bg/90 to-transparent px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] transition-opacity duration-300 ${
           hudVisible ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
@@ -315,7 +315,7 @@ function VideoViewer({
       />
 
       {videoError && (
-        <div className="absolute inset-x-4 bottom-20 z-20 mx-auto max-w-lg">
+        <div className="absolute inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-lg">
           <StatusMessage
             tone="error"
             live
@@ -427,7 +427,7 @@ function MangaViewer({
       onClick={() => setHudVisible((v) => !v)}
     >
       <div
-        className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-bg/90 to-transparent px-4 py-3 transition-opacity duration-300 ${
+        className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-bg/90 to-transparent px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] transition-opacity duration-300 ${
           hudVisible ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -552,7 +552,7 @@ function MangaViewer({
       </div>
 
       {endOfChapter && (
-        <div className="absolute inset-x-0 bottom-24 z-30 mx-auto w-max rounded-xl border border-border bg-surface px-5 py-3 text-sm shadow-lg">
+        <div className="absolute inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto w-max rounded-xl border border-border bg-surface px-5 py-3 text-sm shadow-lg">
           End of chapter
           <button onClick={() => goChapter(true)} className="ml-3 text-accent" aria-label="Open next chapter">
             Next chapter {"->"}
@@ -564,7 +564,7 @@ function MangaViewer({
       )}
 
       {translating && overlayMode !== "off" && (
-        <div className="absolute right-4 top-16 z-30 text-xs text-muted">Translating...</div>
+        <div className="absolute right-4 top-[calc(4rem+env(safe-area-inset-top))] z-30 text-xs text-muted">Translating...</div>
       )}
 
       {translationError && overlayMode !== "off" && (
@@ -613,7 +613,7 @@ function MangaViewer({
       )}
 
       <div
-        className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg/90 to-transparent px-4 py-4 transition-opacity duration-300 ${
+        className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg/90 to-transparent px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] transition-opacity duration-300 ${
           hudVisible ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -1107,13 +1107,13 @@ export function ReaderPage() {
           Retry
         </button>
       }
-      className="fixed right-4 top-4 z-40 px-3 py-2 text-xs"
+      className="fixed right-4 top-[calc(1rem+env(safe-area-inset-top))] z-40 px-3 py-2 text-xs"
     >
       {saveError}
     </StatusMessage>
   ) : null;
   const noticeBanner = notice ? (
-    <StatusMessage tone={noticeTone} live className="pointer-events-none fixed right-4 top-16 z-40 px-3 py-2 text-xs">
+    <StatusMessage tone={noticeTone} live className="pointer-events-none fixed right-4 top-[calc(4rem+env(safe-area-inset-top))] z-40 px-3 py-2 text-xs">
       {notice}
     </StatusMessage>
   ) : null;

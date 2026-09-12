@@ -2,6 +2,19 @@
 
 All notable changes to Shelf are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Installable web reader: Home Screen manifest, Apple meta tags, and PNG icons so iPhone and iPad can Add to Home Screen from the Cloudflare URL
+- Collections in the phone bottom navigation
+- Safe-area padding for the mobile tab bar, login, and reader chrome
+
+### Changed
+
+- Remote series page hides Favorite / reading-mode / version-preference controls that only work on the Mac
+- Remote sidebar no longer shows stubbed “0 series · 0 chapters” counts
+
 ## [0.1.0] — 2026-09-05
 
 First public release.

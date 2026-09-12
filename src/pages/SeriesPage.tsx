@@ -267,19 +267,21 @@ export function SeriesPage() {
                   {isVideo ? "Play from start" : "Start from beginning"}
                 </Link>
               )}
-              <Button
-                onClick={toggleFavorite}
-                variant={series.favorite ? "danger" : "secondary"}
-                aria-pressed={series.favorite}
-                aria-label={series.favorite ? "Remove from favorites" : "Add to favorites"}
-                className={cn(
-                  "px-4 py-2.5",
-                  series.favorite ? "border-red-500/50 text-red-400" : "border-border text-muted",
-                )}
-              >
-                <Heart size={16} fill={series.favorite ? "currentColor" : "none"} />
-                Favorite
-              </Button>
+              {!isThinReader() && (
+                <Button
+                  onClick={toggleFavorite}
+                  variant={series.favorite ? "danger" : "secondary"}
+                  aria-pressed={series.favorite}
+                  aria-label={series.favorite ? "Remove from favorites" : "Add to favorites"}
+                  className={cn(
+                    "px-4 py-2.5",
+                    series.favorite ? "border-red-500/50 text-red-400" : "border-border text-muted",
+                  )}
+                >
+                  <Heart size={16} fill={series.favorite ? "currentColor" : "none"} />
+                  Favorite
+                </Button>
+              )}
               {isThinReader() && (
                 <>
                   <input
@@ -455,6 +457,7 @@ export function SeriesPage() {
                         <span className="text-muted"> (detected: {mode})</span>
                       )}
                     </div>
+                    {!isThinReader() && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(["auto", "webtoon", "paged_ltr", "paged_rtl"] as ReadingMode[]).map((m) => (
                         <Button
@@ -470,8 +473,10 @@ export function SeriesPage() {
                         </Button>
                       ))}
                     </div>
+                    )}
                   </>
                 )}
+                {!isThinReader() && (
                 <div className="mt-4">
                   <label htmlFor="variant-preference" className="text-xs text-muted">Version preference</label>
                   <p className="mt-1 text-xs text-muted">
@@ -491,6 +496,7 @@ export function SeriesPage() {
                     <option value="alternate">Prefer Any Alternate</option>
                   </select>
                 </div>
+                )}
               </div>
             </Surface>
             )}

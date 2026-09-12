@@ -13,7 +13,7 @@ export function LoginGate({ onSignedIn }: { onSignedIn: (session: SessionInfo) =
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="flex h-full items-center justify-center bg-bg px-6">
+    <div className="flex h-full items-center justify-center bg-bg px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <Surface className="w-full max-w-sm rounded-2xl p-6" padded={false}>
         <form
           onSubmit={async (e) => {
