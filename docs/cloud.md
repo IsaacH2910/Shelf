@@ -58,6 +58,20 @@ Do not commit those values. A template lives in `.env.example`.
 
 The origin always binds to loopback. Cloudflare terminates TLS. The HTTP service rejects `Host` headers that are not the configured hostname (with or without `www.`).
 
+## Keep the Mac awake
+
+A sleeping Mac cannot serve the Cloudflare tunnel. While Cloud is on, Shelf runs process-scoped `caffeinate -ims` (idle sleep, disk idle sleep, and system sleep on AC power). That does not need an administrator password and does not keep the display on.
+
+Closed-lid sleep on battery is out of scope without an OS-level setting. Shelf does not run `pmset disablesleep` or prompt for admin.
+
+For phone access:
+
+- Leave the Mac on, preferably plugged in
+- Closing the lid on battery will drop the tunnel
+- Optional one-time OS setting: **System Settings → Energy** (or **Battery**) → **Prevent automatic sleeping when the display is off** while on a power adapter
+
+Do not put the Mac in a bag while Cloud is on.
+
 ## Household
 
 **Settings → Household** creates extra accounts. Each person signs in with their own username and password.
@@ -87,5 +101,6 @@ Signed-in clients can upload into a granted series (chunked, up to 8 GB per file
 | Login rejected | Owner password is set; account is not disabled or locked |
 | Phone shows no series | That user needs a grant, or whole-library access |
 | Blank page from source | Run `npm run build` so `dist/` exists |
+| Phone loses the library after idle | Mac slept. Keep it plugged in; closed-lid-on-battery sleep is not disabled by Shelf |
 
 Turn cloud access off at any time. Existing desktop use is unchanged.

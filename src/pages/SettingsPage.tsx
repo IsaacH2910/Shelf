@@ -457,9 +457,11 @@ export function SettingsPage() {
 
         <Section title="Cloud">
           <p className="mb-3 text-sm text-muted">
-            This Mac stays awake while Cloud is on, including with the lid closed on battery. macOS
-            may ask for your password once. A sleeping or shut-down Mac cannot serve files. Do not
-            put it in a bag while Cloud is on.
+            This Mac stays awake while Cloud is on — no administrator password. A sleeping or
+            shut-down Mac cannot serve files, so keep it plugged in for phone access. Closing the
+            lid on battery will drop the tunnel. On a power adapter, System Settings → Energy (or
+            Battery) → “Prevent automatic sleeping when the display is off” is a one-time OS
+            setting if you want the display off. Do not put it in a bag while Cloud is on.
           </p>
           <div className="flex items-center gap-4 py-1.5">
             <span className="w-20 shrink-0 text-sm text-muted">Password</span>
