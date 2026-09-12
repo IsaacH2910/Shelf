@@ -45,6 +45,7 @@ Rust crate: `src-tauri/`. Main modules:
 | `auth` | Argon2id, sessions, lockout |
 | `http` | Loopback Axum API and static SPA |
 | `tunnel` | Supervises `cloudflared tunnel run --token …` |
+| `keep_awake` | Process-scoped `caffeinate -ims` while Cloud is on (no admin prompt) |
 
 ## Job priorities
 

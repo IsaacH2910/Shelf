@@ -2,6 +2,12 @@
 
 All notable changes to Shelf are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Cloud keep-awake uses only process-scoped `caffeinate` and no longer prompts for an administrator password via `pmset disablesleep`. Closed-lid sleep on battery remains an OS Energy setting.
+
 ## [0.1.0] — 2026-09-05
 
 First public release.
