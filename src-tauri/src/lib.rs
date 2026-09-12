@@ -1128,9 +1128,7 @@ pub fn run() {
                     }
                     let _ = db.set_setting("lan_enabled", "false");
                     let _ = db.set_setting("lan_url", "");
-                    let restore_remote = remote_enabled(&db)
-                        || db.owner_password_set().unwrap_or(false);
-                    if restore_remote {
+                    if remote_enabled(&db) {
                         let s = Arc::clone(&state);
                         tauri::async_runtime::spawn(async move {
                             if let Err(error) = start_cloud_service(&s).await {
@@ -1145,9 +1143,6 @@ pub fn run() {
                             tokio::task::spawn_blocking(move || awake.keep_awake.start())
                                 .await
                                 .ok();
-                            if let Err(e) = s.db.set_setting("remote_enabled", "true") {
-                                tracing::warn!("Could not persist cloud enabled: {e}");
-                            }
                         });
                     }
                 })
