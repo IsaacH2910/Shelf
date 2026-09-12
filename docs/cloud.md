@@ -11,7 +11,9 @@ iPhone / iPad
                     SQLite + local files
 ```
 
-There is no pairing PIN, no LAN listener, and no VPN. The public hostname stays the same across app restarts.
+There is no pairing PIN and no VPN. Nearby Wi-Fi access is a separate **Connect iPhone / iPad** session (Bonjour + LAN). See [Nearby access](local-network.md). The public hostname stays the same across app restarts.
+
+Clients try **Bonjour** (iPhone/iPad app), then a **LAN URL**, then this Cloudflare hostname.
 
 ## What you need
 
@@ -57,7 +59,7 @@ export SHELF_TUNNEL_TOKEN=...
 
 Do not commit those values. A template lives in `.env.example`.
 
-The origin always binds to loopback. Cloudflare terminates TLS. The HTTP service rejects `Host` headers that are not the configured hostname (with or without `www.`).
+While only Cloud is on, the origin binds to loopback so `cloudflared` can keep targeting `http://127.0.0.1:7834`. A nearby session additionally listens on the LAN. Cloudflare terminates TLS for remote. The HTTP service rejects `Host` headers that are not loopback, the configured hostname (with or without `www.`), or this Mac’s LAN name/IP while nearby mode is on.
 
 ## Keep the Mac awake
 
@@ -118,5 +120,6 @@ Signed-in clients can upload into a granted series (chunked, up to 8 GB per file
 | Phone loses the library after idle | Mac slept. Keep it plugged in; closed-lid-on-battery sleep is not disabled by Shelf |
 | Add to Home Screen missing | Use Safari on the HTTPS hostname, not a local HTTP URL |
 | Home Screen app cannot sign in | Mac is asleep or the tunnel is off; reopen Shelf on the Mac |
+| Want Bonjour on the phone | Use the native iOS app, not the PWA. Start **Connect iPhone / iPad** on the Mac |
 
 Turn cloud access off at any time. Existing desktop use is unchanged.

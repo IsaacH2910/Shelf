@@ -18,7 +18,7 @@ You should hear back within a few days. Please give a reasonable window to fix a
 
 - Authentication and session handling (passwords, cookies, lockout, grants)
 - Authorization gaps that let one household member see another member’s library or progress
-- Exposure of the loopback origin beyond `127.0.0.1`
+- Exposure of the loopback origin beyond `127.0.0.1` without an explicit nearby session
 - Path traversal or file-read bugs that escape granted library roots
 - Secrets committed to the repository (tunnel tokens, passwords, keychain dumps)
 
@@ -31,7 +31,7 @@ You should hear back within a few days. Please give a reasonable window to fix a
 
 ## Security model (short)
 
-- **Origin.** The HTTP service binds to `127.0.0.1:7834`. It is not meant to listen on the LAN.
+- **Origin.** The HTTP service binds to `127.0.0.1:7834` unless the owner starts **Connect iPhone / iPad**, which listens on the LAN and advertises `_shelf._tcp` for that session only.
 - **Passwords.** Owner and household passwords are hashed with Argon2id. The minimum length is 8 characters. Remote sign-in is disabled until the owner password is set.
 - **Sessions.** HttpOnly cookies, idle expiry (14 days), absolute expiry (90 days), periodic rotation, and per-device revoke.
 - **Lockout.** Repeated failures lock an account briefly; a global limiter also applies.

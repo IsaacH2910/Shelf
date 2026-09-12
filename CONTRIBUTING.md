@@ -29,7 +29,9 @@ src/lib/                 Frontend API client, library helpers, shortcuts
 src/pages/               Routes (Home, Library, Reader, Settings, …)
 src-tauri/src/           Rust / Tauri backend
 src-tauri/src/db/        SQLite schema and queries
-src-tauri/src/http/      Loopback Axum API for the web client
+src-tauri/src/http/      Axum API for the web client (loopback or nearby LAN)
+src-tauri/src/lan.rs     Nearby session, Bonjour advertise, host allow-list
+ios/Shelf/               Native iOS Bonjour client (Xcode; not built on Linux CI)
 src-tauri/src/pdf/       PDFium worker and page cache
 src-tauri/src/jobs/      Priority job scheduler
 scripts/                 PDFium fetch and other tooling
@@ -49,7 +51,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - Keep originals untouched. Indexing, OCR, and translation must not rewrite library files.
 - The file extension is the source of truth for the viewer: `.pdf` never goes to the video player, `.mp4` never goes to PDFium.
-- Desktop commands go through Tauri `invoke`. The iPhone/iPad client talks to the loopback HTTP API over the tunnel and uses cookie sessions.
+- Desktop commands go through Tauri `invoke`. The iPhone/iPad native shell browses Bonjour, then a LAN URL, then Cloudflare. The PWA uses LAN then Cloudflare.
 - Do not commit secrets, tunnel tokens, keychain material, or personal hostnames. Cloud credentials belong in the macOS keychain or your own local config, not the repository.
 - Do not commit `node_modules/`, `dist/`, or `src-tauri/target/`.
 

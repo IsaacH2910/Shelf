@@ -2,12 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { isLanHost, isLoopbackHost } from "./lib/connection";
 import "./index.css";
 
 if (
   window.location.protocol === "http:" &&
-  window.location.hostname !== "localhost" &&
-  window.location.hostname !== "127.0.0.1"
+  !isLoopbackHost(window.location.hostname) &&
+  !isLanHost(window.location.hostname)
 ) {
   window.location.replace(`https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`);
 }

@@ -35,7 +35,7 @@ const more: NavItem[] = [collectionsNav, { to: "/settings", label: "Settings", i
 const mobileNav: NavItem[] = [...primary, collectionsNav];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { indexStatus, session, signOut } = useApp();
+  const { indexStatus, session, signOut, connectionKind } = useApp();
   const location = useLocation();
   const isReader = location.pathname.startsWith("/read/");
   const remote = !isTauri();
@@ -101,8 +101,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {indexStatus.failedJobs} {indexStatus.failedJobs === 1 ? "task" : "tasks"} failed · Rescan to retry
               </p>
             )}
+            {remote && (
+              <p
+                className={cn(
+                  "text-[11px] uppercase tracking-[0.14em]",
+                  showIndexCounts && "mt-3",
+                  connectionKind === "offline" ? "text-red-300" : "text-accent",
+                )}
+              >
+                {connectionKind === "local" ? "LAN" : connectionKind === "cloud" ? "Cloud" : "Offline"}
+              </p>
+            )}
             {remote && session && (
-              <div className={cn("flex items-center justify-between gap-2", showIndexCounts && "mt-3")}>
+              <div className="mt-2 flex items-center justify-between gap-2">
                 <p className="truncate">{session.displayName}</p>
                 <button type="button" className="text-accent hover:text-accent-hover" onClick={() => void signOut()}>
                   Sign out
@@ -117,9 +128,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="flex items-center justify-between border-b border-border bg-bg px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] min-[720px]:hidden">
           <h1 className="text-base font-semibold">Shelf</h1>
           {remote ? (
-            <button type="button" className="text-sm text-muted" onClick={() => void signOut()}>
-              Sign out
-            </button>
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "text-[11px] uppercase tracking-[0.14em]",
+                  connectionKind === "offline" ? "text-red-300" : "text-accent",
+                )}
+              >
+                {connectionKind === "local" ? "LAN" : connectionKind === "cloud" ? "Cloud" : "Offline"}
+              </span>
+              <button type="button" className="text-sm text-muted" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            </div>
           ) : (
             <NavLink to="/settings" className="text-muted">
               <Settings size={18} />

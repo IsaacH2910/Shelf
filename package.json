@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test src/types/reading.test.ts src/lib/api.test.ts src/lib/libraryState.test.ts src/lib/readerShortcuts.test.ts",
+    "test": "node --experimental-strip-types --test src/types/reading.test.ts src/lib/api.test.ts src/lib/libraryState.test.ts src/lib/readerShortcuts.test.ts src/lib/connection.test.ts",
     "tauri": "tauri",
     "postinstall": "node scripts/fetch-pdfium.mjs",
     "pdfium": "node scripts/fetch-pdfium.mjs"

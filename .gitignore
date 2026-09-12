@@ -16,6 +16,9 @@ dist-ssr
 !.env.example
 src-tauri/target
 target
+xcuserdata/
+DerivedData/
+ios/**/build/
 
 # Editor directories and files
 .vscode/*

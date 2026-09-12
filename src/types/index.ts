@@ -165,11 +165,26 @@ export interface RemoteSettings {
   restartCount: number;
 }
 
+export type NearbyDuration = "until_off" | "15m" | "60m";
+
+export interface LanSettings {
+  enabled: boolean;
+  duration: NearbyDuration;
+  expiresAt?: string;
+  localUrl?: string;
+  hostname?: string;
+  ip?: string;
+  port: number;
+  advertised: boolean;
+  qrDataUrl?: string;
+}
+
 export interface AppSettings {
   cacheSizeMb: number;
   cacheUsedMb: number;
   defaultReadingMode: ReadingMode;
   remote: RemoteSettings;
+  lan: LanSettings;
   ocrEngineId?: string;
   translatorId?: string;
   remoteLoginReady: boolean;

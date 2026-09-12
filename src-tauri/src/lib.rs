@@ -4,6 +4,7 @@ mod http;
 mod index;
 mod jobs;
 mod keep_awake;
+mod lan;
 mod media;
 mod models;
 mod ocr;
@@ -38,8 +39,47 @@ pub struct AppState {
     pub keep_awake: keep_awake::KeepAwake,
     pub login_limiter: auth::LoginLimiter,
     pub uploads: UploadManager,
+    pub lan: lan::LanService,
+    pub nearby_watch: NearbyWatch,
     pub web_root: PathBuf,
     pub upload_dir: PathBuf,
+}
+
+pub struct NearbyWatch {
+    stop: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+}
+
+impl NearbyWatch {
+    fn new() -> Self {
+        Self {
+            stop: Mutex::new(None),
+        }
+    }
+
+    fn cancel(&self) {
+        if let Some(tx) = self.stop.lock().take() {
+            let _ = tx.send(());
+        }
+    }
+
+    fn arm(&self, state: Arc<AppState>, deadline: chrono::DateTime<chrono::Utc>) {
+        self.cancel();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        *self.stop.lock() = Some(tx);
+        tauri::async_runtime::spawn(async move {
+            let wait = (deadline - chrono::Utc::now())
+                .to_std()
+                .unwrap_or(std::time::Duration::ZERO);
+            tokio::select! {
+                _ = rx => {}
+                _ = tokio::time::sleep(wait) => {
+                    if let Err(error) = disable_nearby(&state).await {
+                        tracing::warn!("Could not end the nearby session: {error}");
+                    }
+                }
+            }
+        });
+    }
 }
 
 fn bytes_to_data_url(bytes: &[u8]) -> String {
@@ -298,11 +338,35 @@ fn remote_enabled(db: &Database) -> bool {
         .unwrap_or(false)
 }
 
-async fn start_cloud_service(state: &Arc<AppState>) -> Result<String, String> {
+fn lan_enabled(db: &Database) -> bool {
+    lan::enabled(db)
+}
+
+fn origin_needed(db: &Database) -> bool {
+    remote_enabled(db) || lan_enabled(db)
+}
+
+async fn start_cloud_service(state: &Arc<AppState>, lan_bind: bool) -> Result<String, String> {
     state
         .cloud
-        .start(Arc::clone(state), state.service_port)
+        .start(Arc::clone(state), state.service_port, lan_bind)
         .await
+}
+
+fn start_bonjour(state: &AppState) -> Result<lan::LanIdentity, String> {
+    state.lan.start(state.service_port)
+}
+
+fn stop_bonjour(state: &AppState) {
+    state.lan.stop();
+}
+
+fn sync_keep_awake(state: &AppState) {
+    if origin_needed(&state.db) {
+        state.keep_awake.start();
+    } else {
+        state.keep_awake.stop();
+    }
 }
 
 fn remote_hostname(db: &Database) -> String {
@@ -726,8 +790,42 @@ fn get_settings(state: State<'_, Arc<AppState>>) -> Result<AppSettings, String> 
         },
         ocr_engine_id: state.db.get_setting("ocr_engine_id").map_err(|e| e.to_string())?,
         translator_id: state.db.get_setting("translator_id").map_err(|e| e.to_string())?,
+        lan: lan_settings_from(&state),
         remote_login_ready,
     })
+}
+
+fn lan_settings_from(state: &AppState) -> LanSettings {
+    let enabled = lan_enabled(&state.db);
+    let identity = if enabled {
+        state.lan.identity()
+    } else {
+        state.lan.refresh(state.service_port)
+    };
+    let local_url = if identity.url.is_empty() {
+        None
+    } else {
+        Some(identity.url.clone())
+    };
+    LanSettings {
+        enabled,
+        duration: lan::stored_duration(&state.db),
+        expires_at: lan::stored_expires_at(&state.db),
+        local_url: local_url.clone(),
+        hostname: if identity.bonjour_host.is_empty() {
+            None
+        } else {
+            Some(identity.bonjour_host.clone())
+        },
+        ip: identity.primary_ip().map(|ip| ip.to_string()),
+        port: identity.port,
+        advertised: state.lan.advertising(),
+        qr_data_url: if enabled {
+            local_url.as_deref().and_then(qr_data_url)
+        } else {
+            None
+        },
+    }
 }
 
 #[tauri::command(async)]
@@ -1001,39 +1099,145 @@ async fn set_remote_config(
 ) -> Result<RemoteSettings, String> {
     if enabled {
         state.tunnel.stop();
-        if let Err(error) = start_cloud_service(&state).await {
+        if let Err(error) = start_cloud_service(&state, lan_enabled(&state.db)).await {
             state.tunnel.mark_error(&error);
             return Err(error);
         }
         if let Err(error) = start_tunnel(&state) {
-            state.keep_awake.stop();
             state.tunnel.stop();
             state.tunnel.mark_error(&error);
-            state.cloud.stop().await;
+            state
+                .db
+                .set_setting("remote_enabled", "false")
+                .map_err(|e| e.to_string())?;
+            if !lan_enabled(&state.db) {
+                state.cloud.stop().await;
+            }
+            let awake = Arc::clone(&state);
+            tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
+                .await
+                .ok();
             return Err(error);
         }
-        let awake = Arc::clone(&state);
-        tokio::task::spawn_blocking(move || awake.keep_awake.start())
-            .await
-            .ok();
         state
             .db
             .set_setting("remote_enabled", "true")
             .map_err(|e| e.to_string())?;
+        let awake = Arc::clone(&state);
+        tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
+            .await
+            .ok();
     } else {
         state
             .db
             .set_setting("remote_enabled", "false")
             .map_err(|e| e.to_string())?;
+        state.tunnel.stop();
+        if lan_enabled(&state.db) {
+            if let Err(error) = start_cloud_service(&state, true).await {
+                return Err(error);
+            }
+        } else {
+            state.cloud.stop().await;
+        }
         let awake = Arc::clone(&state);
-        tokio::task::spawn_blocking(move || awake.keep_awake.stop())
+        tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
             .await
             .ok();
-        state.tunnel.stop();
-        state.cloud.stop().await;
     }
 
     get_settings(state).map(|s| s.remote)
+}
+
+#[tauri::command(async)]
+async fn set_lan_config(
+    state: State<'_, Arc<AppState>>,
+    enabled: bool,
+    duration: Option<String>,
+) -> Result<LanSettings, String> {
+    if enabled {
+        enable_nearby(&state, duration.as_deref()).await?;
+    } else {
+        disable_nearby(&state).await?;
+    }
+    Ok(lan_settings_from(&state))
+}
+
+async fn enable_nearby(state: &Arc<AppState>, duration: Option<&str>) -> Result<(), String> {
+    if !state.db.owner_password_set().map_err(|e| e.to_string())? {
+        return Err("Set an owner password before connecting a phone or tablet".into());
+    }
+    let stored = lan::stored_duration(&state.db);
+    let duration = lan::normalize_duration(duration.or(Some(stored.as_str())));
+    let expires = lan::expires_at_for(duration, chrono::Utc::now());
+    state
+        .db
+        .set_setting("lan_duration", duration)
+        .map_err(|e| e.to_string())?;
+    state
+        .db
+        .set_setting(
+            "lan_expires_at",
+            &expires
+                .map(|t| t.to_rfc3339())
+                .unwrap_or_default(),
+        )
+        .map_err(|e| e.to_string())?;
+    state
+        .db
+        .set_setting("lan_enabled", "true")
+        .map_err(|e| e.to_string())?;
+    if let Err(error) = start_cloud_service(state, true).await {
+        let _ = state.db.set_setting("lan_enabled", "false");
+        stop_bonjour(state);
+        state.nearby_watch.cancel();
+        return Err(error);
+    }
+    if let Err(error) = start_bonjour(state) {
+        let _ = state.db.set_setting("lan_enabled", "false");
+        let _ = state.db.set_setting("lan_expires_at", "");
+        if remote_enabled(&state.db) {
+            let _ = start_cloud_service(state, false).await;
+        } else {
+            state.cloud.stop().await;
+        }
+        stop_bonjour(state);
+        state.nearby_watch.cancel();
+        return Err(error);
+    }
+    let url = state.lan.identity().url;
+    let _ = state.db.set_setting("lan_url", &url);
+    if let Some(deadline) = expires {
+        state.nearby_watch.arm(Arc::clone(state), deadline);
+    } else {
+        state.nearby_watch.cancel();
+    }
+    let awake = Arc::clone(state);
+    tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
+        .await
+        .ok();
+    Ok(())
+}
+
+async fn disable_nearby(state: &Arc<AppState>) -> Result<(), String> {
+    state.nearby_watch.cancel();
+    state
+        .db
+        .set_setting("lan_enabled", "false")
+        .map_err(|e| e.to_string())?;
+    let _ = state.db.set_setting("lan_expires_at", "");
+    let _ = state.db.set_setting("lan_url", "");
+    stop_bonjour(state);
+    if remote_enabled(&state.db) {
+        start_cloud_service(state, false).await?;
+    } else {
+        state.cloud.stop().await;
+    }
+    let awake = Arc::clone(state);
+    tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
+        .await
+        .ok();
+    Ok(())
 }
 
 #[tauri::command(async)]
@@ -1101,6 +1305,8 @@ pub fn run() {
                 keep_awake: keep_awake::KeepAwake::new(),
                 login_limiter: auth::LoginLimiter::new(),
                 uploads: UploadManager::new(),
+                lan: lan::LanService::new(),
+                nearby_watch: NearbyWatch::new(),
                 web_root,
                 upload_dir,
             });
@@ -1126,21 +1332,45 @@ pub fn run() {
                     if let Err(error) = restart_all_watchers(&state) {
                         tracing::warn!("Could not initialize library watchers: {error}");
                     }
-                    let _ = db.set_setting("lan_enabled", "false");
-                    let _ = db.set_setting("lan_url", "");
-                    if remote_enabled(&db) {
+                    lan::reconcile_expired(&db);
+                    let restore_lan = lan_enabled(&db)
+                        && db.owner_password_set().unwrap_or(false);
+                    let restore_remote = remote_enabled(&db);
+                    if restore_lan || restore_remote {
                         let s = Arc::clone(&state);
                         tauri::async_runtime::spawn(async move {
-                            if let Err(error) = start_cloud_service(&s).await {
-                                tracing::warn!("Could not restore cloud service: {error}");
+                            if restore_lan {
+                                if let Err(error) = start_cloud_service(&s, true).await {
+                                    tracing::warn!("Could not restore nearby origin: {error}");
+                                } else if let Err(error) = start_bonjour(&s) {
+                                    tracing::warn!("Could not advertise over Bonjour: {error}");
+                                } else if let Some(raw) = lan::stored_expires_at(&s.db) {
+                                    if let Ok(deadline) = chrono::DateTime::parse_from_rfc3339(&raw)
+                                    {
+                                        s.nearby_watch
+                                            .arm(Arc::clone(&s), deadline.with_timezone(&chrono::Utc));
+                                    }
+                                }
+                            } else if restore_remote {
+                                if let Err(error) = start_cloud_service(&s, false).await {
+                                    tracing::warn!("Could not restore cloud service: {error}");
+                                }
                             }
-                            if let Err(e) = start_tunnel(&s) {
-                                s.keep_awake.stop();
-                                tracing::warn!("Could not restore Cloudflare tunnel: {e}");
-                                return;
+                            if restore_remote {
+                                if let Err(e) = start_tunnel(&s) {
+                                    tracing::warn!("Could not restore Cloudflare tunnel: {e}");
+                                    if !lan_enabled(&s.db) {
+                                        s.keep_awake.stop();
+                                    }
+                                    let awake = Arc::clone(&s);
+                                    tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
+                                        .await
+                                        .ok();
+                                    return;
+                                }
                             }
                             let awake = Arc::clone(&s);
-                            tokio::task::spawn_blocking(move || awake.keep_awake.start())
+                            tokio::task::spawn_blocking(move || sync_keep_awake(&awake))
                                 .await
                                 .ok();
                         });
@@ -1197,6 +1427,7 @@ pub fn run() {
             revoke_session,
             set_remote_credentials,
             set_remote_config,
+            set_lan_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
