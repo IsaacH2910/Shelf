@@ -1300,8 +1300,10 @@ fn mime_guess(path: &FsPath) -> &'static str {
         Some("svg") => "image/svg+xml",
         Some("webp") => "image/webp",
         Some("png") => "image/png",
+        Some("ico") => "image/x-icon",
         Some("woff2") => "font/woff2",
         Some("json") => "application/json",
+        Some("webmanifest") => "application/manifest+json",
         Some("html") => "text/html; charset=utf-8",
         _ => "application/octet-stream",
     }
@@ -1383,6 +1385,17 @@ mod tests {
         assert!(safe_static_file(&dir, "/ok.js").is_some());
         assert!(safe_static_file(&dir, "/../ok.js").is_none());
         assert!(safe_static_file(&dir, "/foo/../../etc/passwd").is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn spa_serves_webmanifest_with_manifest_content_type() {
+        let dir = std::env::temp_dir().join(format!("shelf-manifest-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("manifest.webmanifest"), r#"{"name":"Shelf"}"#).unwrap();
+        let (mime, bytes) = safe_static_file(&dir, "/manifest.webmanifest").expect("manifest");
+        assert_eq!(mime, "application/manifest+json");
+        assert_eq!(bytes, br#"{"name":"Shelf"}"#);
         let _ = fs::remove_dir_all(&dir);
     }
 

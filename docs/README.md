@@ -3,7 +3,7 @@
 Guides for running and working on Shelf.
 
 - [Library](library.md) — folder layout, formats, reading modes, variants, shortcuts
-- [Cloud access](cloud.md) — HTTPS remote access, household accounts, devices
+- [Cloud access](cloud.md) — HTTPS remote access, household accounts, devices, Home Screen install
 - [Architecture](architecture.md) — frontend, Rust backend, jobs, HTTP API, data
 
 Project-level files:

@@ -24,6 +24,7 @@ Shelf is a Tauri 2 desktop app: a React UI in the main window, and a Rust backen
 | --- | --- |
 | UI | React 19, TypeScript, Tailwind CSS v4 |
 | Routing | `react-router-dom` with a hash router (works as a static SPA behind the tunnel) |
+| Install | Web app manifest + Apple Home Screen meta so iPhone / iPad can Add to Home Screen (standalone reader; Mac stays the origin) |
 | Virtualization | `@tanstack/react-virtual` for long chapter lists and tall webtoon stacks |
 | Desktop bridge | `@tauri-apps/api` plus the dialog and opener plugins |
 

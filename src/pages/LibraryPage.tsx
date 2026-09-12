@@ -59,7 +59,7 @@ export function HomePage() {
   }, [loadHome]);
 
   useEffect(() => {
-    if (loading || loadedSeriesCount == null || indexStatus == null) return;
+    if (!isTauri() || loading || loadedSeriesCount == null || indexStatus == null) return;
     if (indexStatus.seriesCount !== loadedSeriesCount) {
       void loadHome(false);
     }
