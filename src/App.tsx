@@ -5,6 +5,15 @@ import { LoginGate } from "./components/PairGate";
 import { AppContext } from "./context/AppContext";
 import { api, fetchSessionInfo, isTauri, logoutRemote } from "./lib/api";
 import {
+  classifyOrigin,
+  markAuthOrigin,
+  navigateToOrigin,
+  persistCurrentOrigin,
+  rememberCloudHostname,
+  resolveActiveOrigin,
+  type ConnectionKind,
+} from "./lib/connection";
+import {
   ActivityPage,
   HomePage,
   LibraryPage,
@@ -48,6 +57,7 @@ function WhatsNewModal({ version, onClose }: { version: string; onClose: () => v
           <li>Local-first library for PDFs and local video, indexed in place on your Mac.</li>
           <li>Chapter version preference in the reader, with V and Shift+V to cycle.</li>
           <li>Optional HTTPS cloud access, household accounts, and per-user reading progress.</li>
+          <li>Connect iPhone / iPad starts a nearby session (Bonjour + LAN). The iOS app tries Bonjour, then a LAN URL, then Cloudflare.</li>
         </ul>
         <div className="mt-5 flex items-center justify-end gap-2">
           <button
@@ -90,6 +100,9 @@ function AppShellHost() {
   const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [auth, setAuth] = useState<"loading" | "in" | "out">(isTauri() ? "in" : "loading");
+  const [connectionKind, setConnectionKind] = useState<ConnectionKind>(
+    isTauri() ? "local" : classifyOrigin(window.location.origin),
+  );
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   const refreshSettings = useCallback(async () => {
@@ -122,24 +135,59 @@ function AppShellHost() {
       return;
     }
     let cancelled = false;
-    fetchSessionInfo()
-      .then((info) => {
-        if (!cancelled) {
-          setSession(info);
-          setAuth("in");
-        }
+    persistCurrentOrigin();
+    rememberCloudHostname(window.location.hostname);
+
+    const applyOrigin = async () => {
+      const resolved = await resolveActiveOrigin(window.location.origin);
+      if (cancelled) return resolved;
+      setConnectionKind(resolved.kind);
+      if (resolved.switched && resolved.kind !== "offline") {
+        navigateToOrigin(resolved.origin);
+        return resolved;
+      }
+      if (resolved.kind === "offline") {
+        setConnectionKind("offline");
+      }
+      return resolved;
+    };
+
+    applyOrigin()
+      .then(() => {
+        if (cancelled) return;
+        return fetchSessionInfo()
+          .then((info) => {
+            if (cancelled) return;
+            setSession(info);
+            markAuthOrigin(window.location.origin);
+            setAuth("in");
+          })
+          .catch(() => {
+            if (!cancelled) setAuth("out");
+          });
       })
       .catch(() => {
         if (!cancelled) setAuth("out");
       });
+
     const onUnauth = () => {
       setSession(null);
       setAuth("out");
     };
+    const onResume = () => {
+      void applyOrigin();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onResume();
+    };
     window.addEventListener("shelf:unauthorized", onUnauth);
+    window.addEventListener("online", onResume);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.removeEventListener("shelf:unauthorized", onUnauth);
+      window.removeEventListener("online", onResume);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -191,7 +239,7 @@ function AppShellHost() {
 
   return (
     <AppContext.Provider
-      value={{ settings, indexStatus, refreshSettings, refreshIndexStatus, openWhatsNew, session, signOut }}
+      value={{ settings, indexStatus, refreshSettings, refreshIndexStatus, openWhatsNew, session, signOut, connectionKind }}
     >
       <>
         <AppShell>

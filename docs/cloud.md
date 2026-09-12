@@ -11,7 +11,9 @@ iPhone / iPad
                     SQLite + local files
 ```
 
-There is no pairing PIN, no LAN listener, and no VPN. The public hostname stays the same across app restarts.
+There is no pairing PIN and no VPN. Nearby Wi-Fi access is a separate **Connect iPhone / iPad** session (Bonjour + LAN). See [Nearby access](local-network.md). The public hostname stays the same across app restarts.
+
+Clients try **Bonjour** (iPhone/iPad app), then a **LAN URL**, then this Cloudflare hostname.
 
 ## What you need
 
@@ -44,6 +46,7 @@ Hostname and token are **local only**. They are never compiled into the app.
 4. Enable cloud access
 5. On the phone, open the HTTPS URL shown in Settings (or scan the QR code)
 6. Sign in as `owner` with that password
+7. Optionally add Shelf to the Home Screen (see below)
 
 The hostname is stored in the local SQLite settings. The token is stored in the macOS keychain (`com.isaach.shelf` / `cloudflare-tunnel-token`). Neither belongs in git.
 
@@ -56,7 +59,7 @@ export SHELF_TUNNEL_TOKEN=...
 
 Do not commit those values. A template lives in `.env.example`.
 
-The origin always binds to loopback. Cloudflare terminates TLS. The HTTP service rejects `Host` headers that are not the configured hostname (with or without `www.`).
+While only Cloud is on, the origin binds to loopback so `cloudflared` can keep targeting `http://127.0.0.1:7834`. A nearby session additionally listens on the LAN. Cloudflare terminates TLS for remote. The HTTP service rejects `Host` headers that are not loopback, the configured hostname (with or without `www.`), or this Mac’s LAN name/IP while nearby mode is on.
 
 ## Keep the Mac awake
 
@@ -83,6 +86,19 @@ Do not put the Mac in a bag while Cloud is on.
 
 The phone and tablet UI is a thin reader. Library roots, OCR engines, and household admin stay on the Mac.
 
+## Install on iPhone or iPad
+
+The remote reader is a Progressive Web App. It uses the same HTTPS hostname, cookie session, and household accounts as the browser. It is not an App Store app and does not browse the library offline — the Mac must stay awake and reachable.
+
+1. Enable cloud access on the Mac and leave Shelf running.
+2. On the iPhone or iPad, open **Safari**.
+3. Open the HTTPS hostname shown in Settings (or scan the QR code).
+4. Sign in as `owner` or a household username.
+5. Tap **Share → Add to Home Screen**. Confirm the name **Shelf**.
+6. Open Shelf from the Home Screen next time. It launches standalone (no Safari chrome).
+
+Safari is the reliable Add to Home Screen path on iOS and iPadOS. The Home Screen icon uses the Shelf mark; the status bar and theme match the dark UI (`#0b0b0c`).
+
 ## Devices
 
 **Settings → Devices** lists active sessions. Revoke a lost phone there. Sessions idle out after 14 days, expire after 90 days, and rotate periodically. Eight failed logins lock that account for 15 minutes.
@@ -102,5 +118,8 @@ Signed-in clients can upload into a granted series (chunked, up to 8 GB per file
 | Phone shows no series | That user needs a grant, or whole-library access |
 | Blank page from source | Run `npm run build` so `dist/` exists |
 | Phone loses the library after idle | Mac slept. Keep it plugged in; closed-lid-on-battery sleep is not disabled by Shelf |
+| Add to Home Screen missing | Use Safari on the HTTPS hostname, not a local HTTP URL |
+| Home Screen app cannot sign in | Mac is asleep or the tunnel is off; reopen Shelf on the Mac |
+| Want Bonjour on the phone | Use the native iOS app, not the PWA. Start **Connect iPhone / iPad** on the Mac |
 
 Turn cloud access off at any time. Existing desktop use is unchanged.

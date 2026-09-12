@@ -1,8 +1,8 @@
 # Shelf
 
-A local-first personal media library for macOS. Shelf indexes the PDFs and local video already on your Mac, without moving or modifying the originals, and lets you read or watch them on the desktop — or sign in from an iPhone or iPad over HTTPS.
+A local-first personal media library for macOS. Shelf indexes the PDFs and local video already on your Mac, without moving or modifying the originals, and lets you read or watch them on the desktop — or sign in from a phone or tablet.
 
-The desktop app works fully offline. Cloud access is optional.
+The desktop app works fully offline. Nearby Wi-Fi and Cloudflare access are optional. Clients try **Bonjour** (iPhone/iPad app), then a **LAN URL**, then **Cloudflare**.
 
 ## Features
 
@@ -12,7 +12,9 @@ The desktop app works fully offline. Cloud access is optional.
 - Continuous vertical reading for manga and manhwa, paged reading for documents, and a full-window player for video
 - Per-series chapter variant preference (Primary / Uncensored / Revised / Bonus / Alternate), including “Prefer current” in the reader and keyboard cycling with `V` / `Shift+V`
 - Resume at the exact page, scroll offset, or video timestamp, synced across the Mac and signed-in devices
-- Optional personal cloud: sign in over HTTPS from any network (home Wi-Fi, another Wi-Fi, or cellular)
+- Optional nearby session: **Connect iPhone / iPad** advertises `_shelf._tcp` and opens LAN HTTP for the same household accounts
+- Native iPhone/iPad shell (`ios/Shelf`) browses Bonjour, then a LAN URL, then Cloudflare
+- Optional personal cloud: sign in over HTTPS from any network, then Add to Home Screen for a standalone reader (Safari cannot browse Bonjour)
 - Household accounts with per-user library grants and separate reading progress
 - On-device OCR via Apple Vision; Simplified → Traditional conversion with OpenCC; Apple Translation when the OS provides it
 - Translation overlay (`T`) that never writes back to the source file
@@ -24,7 +26,7 @@ The desktop app works fully offline. Cloud access is optional.
 - [Rust](https://rustup.rs/) 1.77 or later
 - [Tauri 2 macOS prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-Cloud access also needs [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and a Cloudflare named tunnel. See [Cloud access](docs/cloud.md).
+Cloud access also needs [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and a Cloudflare named tunnel. See [Cloud access](docs/cloud.md) and [Nearby access](docs/local-network.md). The iPhone app lives in [`ios/`](ios/README.md).
 
 ## Quick start
 
@@ -69,6 +71,8 @@ Supported extensions are `.pdf` and `.mp4`. Season, volume, and extras subfolder
 | --- | --- |
 | [Library](docs/library.md) | Folder layout, formats, reading modes, variants, shortcuts |
 | [Cloud access](docs/cloud.md) | HTTPS remote access, household accounts, devices |
+| [Nearby access](docs/local-network.md) | Connect iPhone / iPad, Bonjour, LAN URL |
+| [iOS app](ios/README.md) | Native Bonjour client (Xcode / Simulator) |
 | [Architecture](docs/architecture.md) | Frontend, Rust backend, jobs, HTTP API, data |
 | [Contributing](CONTRIBUTING.md) | Development setup, tests, pull requests |
 | [Security](SECURITY.md) | Threat model and vulnerability reporting |
@@ -78,13 +82,15 @@ Supported extensions are `.pdf` and `.mp4`. Season, volume, and extras subfolder
 
 - Primary mark: `public/shelf.svg`
 - Web favicon: `index.html` points at `/shelf.svg`
-- After changing the SVG, regenerate desktop icons:
+- PWA / Home Screen: `public/manifest.webmanifest`, `public/apple-touch-icon.png`, `public/pwa-*.png`
+- After changing the SVG, regenerate desktop and Home Screen icons:
 
 ```bash
 npm run tauri icon public/shelf.svg
+python3 scripts/generate-pwa-icons.py
 ```
 
-That refreshes `src-tauri/icons/` (`icon.icns`, `icon.ico`, and platform variants).
+The Tauri command refreshes `src-tauri/icons/` (`icon.icns`, `icon.ico`, and platform variants). The Python script (Pillow) writes the 180 / 192 / 512 PNG icons used by Add to Home Screen.
 
 ## License
 

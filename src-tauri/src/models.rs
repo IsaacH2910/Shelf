@@ -290,6 +290,23 @@ pub struct RemoteSettings {
     pub restart_count: u32,
 }
 
+/// Nearby connect session: LAN bind + Bonjour advertise. Off unless the owner starts it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanSettings {
+    pub enabled: bool,
+    /// `until_off`, `15m`, or `60m`.
+    pub duration: String,
+    pub expires_at: Option<String>,
+    /// Best-effort `http://<hostname>.local:<port>` or `http://<lan-ip>:<port>`.
+    pub local_url: Option<String>,
+    pub hostname: Option<String>,
+    pub ip: Option<String>,
+    pub port: u16,
+    pub advertised: bool,
+    pub qr_data_url: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -297,6 +314,7 @@ pub struct AppSettings {
     pub cache_used_mb: u32,
     pub default_reading_mode: ReadingMode,
     pub remote: RemoteSettings,
+    pub lan: LanSettings,
     pub ocr_engine_id: Option<String>,
     pub translator_id: Option<String>,
     /// False until the owner sets a password. Remote sign-in is impossible until then,

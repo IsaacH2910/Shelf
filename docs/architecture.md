@@ -11,11 +11,12 @@ Shelf is a Tauri 2 desktop app: a React UI in the main window, and a Rust backen
 │    Rust: SQLite · PDFium worker · job queue · watcher       │
 │                        │                                    │
 │                        ▼                                    │
-│    Axum on 127.0.0.1:7834  ←── cloudflared (optional)       │
+│    Axum 127.0.0.1:7834  ←── cloudflared (optional)          │
+│    or 0.0.0.0:7834 + Bonjour _shelf._tcp (nearby session)   │
 └─────────────────────────────────────────────────────────────┘
          ▲
-         │ HTTPS (named tunnel)
-  iPhone / iPad (same web client, cookie session)
+         │ 1 Bonjour  2 LAN HTTP  3 Cloudflare HTTPS
+  iPhone / iPad native shell · browsers on the same Wi-Fi
 ```
 
 ## Frontend
@@ -24,6 +25,7 @@ Shelf is a Tauri 2 desktop app: a React UI in the main window, and a Rust backen
 | --- | --- |
 | UI | React 19, TypeScript, Tailwind CSS v4 |
 | Routing | `react-router-dom` with a hash router (works as a static SPA behind the tunnel) |
+| Install | Web app manifest + Apple Home Screen meta (Cloudflare / LAN URL). Native iOS shell in `ios/Shelf` is the Bonjour client |
 | Virtualization | `@tanstack/react-virtual` for long chapter lists and tall webtoon stacks |
 | Desktop bridge | `@tauri-apps/api` plus the dialog and opener plugins |
 
@@ -43,7 +45,8 @@ Rust crate: `src-tauri/`. Main modules:
 | `jobs` | Priority scheduler |
 | `ocr` / `translate` | Apple Vision, OpenCC / zhconv, Apple Translation |
 | `auth` | Argon2id, sessions, lockout |
-| `http` | Loopback Axum API and static SPA |
+| `http` | Axum API and static SPA (loopback, or all interfaces during a nearby session) |
+| `lan` | Nearby session helpers, Bonjour advertise (`mdns-sd`), host allow-list |
 | `tunnel` | Supervises `cloudflared tunnel run --token …` |
 | `keep_awake` | Process-scoped `caffeinate -ims` while Cloud is on (no admin prompt) |
 
@@ -62,7 +65,7 @@ Dev builds optimize image crates (`opt-level` 2–3) so JPEG decode and resize s
 
 ## HTTP API
 
-The cloud origin is loopback-only. Public routes:
+The origin is loopback-only unless **Connect iPhone / iPad** is on, in which case it also listens on the LAN and advertises `_shelf._tcp`. Public routes:
 
 - `GET /api/health`
 - `POST /api/auth/login`

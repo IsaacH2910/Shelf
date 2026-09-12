@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { ConnectionKind } from "../lib/connection";
 import type { AppSettings, IndexStatus, SessionInfo } from "../types";
 
 export interface AppContextValue {
@@ -9,6 +10,7 @@ export interface AppContextValue {
   openWhatsNew: () => void;
   session: SessionInfo | null;
   signOut: () => Promise<void>;
+  connectionKind: ConnectionKind;
 }
 
 export const AppContext = createContext<AppContextValue>({
@@ -19,6 +21,7 @@ export const AppContext = createContext<AppContextValue>({
   openWhatsNew: () => {},
   session: null,
   signOut: async () => {},
+  connectionKind: "cloud",
 });
 
 export function useApp() {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login } from "../lib/api";
+import { classifyOrigin, originSwitchNeedsLogin } from "../lib/connection";
 import type { SessionInfo } from "../types";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -11,9 +12,11 @@ export function LoginGate({ onSignedIn }: { onSignedIn: (session: SessionInfo) =
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const switchedOrigin = typeof window !== "undefined" && originSwitchNeedsLogin(window.location.origin);
+  const kind = typeof window !== "undefined" ? classifyOrigin(window.location.origin) : "cloud";
 
   return (
-    <div className="flex h-full items-center justify-center bg-bg px-6">
+    <div className="flex h-full items-center justify-center bg-bg px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <Surface className="w-full max-w-sm rounded-2xl p-6" padded={false}>
         <form
           onSubmit={async (e) => {
@@ -35,6 +38,12 @@ export function LoginGate({ onSignedIn }: { onSignedIn: (session: SessionInfo) =
             Sign in with the owner username and password from the Mac app. There is no pairing PIN.
             Files stay on your Mac.
           </p>
+          {switchedOrigin && (
+            <p className="mt-3 text-sm text-accent">
+              This address is different from last time ({kind === "local" ? "LAN" : "Cloudflare"}).
+              Sessions stay on one origin, so sign in again here. Household accounts are the same.
+            </p>
+          )}
           <label htmlFor="shelf-username" className="mt-5 block text-xs text-muted">
             Username
           </label>

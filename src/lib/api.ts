@@ -13,6 +13,8 @@ import type {
   PageImage,
   PageTile,
   ReadingProgress,
+  LanSettings,
+  NearbyDuration,
   RemoteSettings,
   Series,
   SeriesQuery,
@@ -511,6 +513,8 @@ function tauriApi() {
       invoke<RemoteSettings>("set_remote_credentials", { hostname, token }),
     setRemoteConfig: (enabled: boolean) =>
       invoke<RemoteSettings>("set_remote_config", { enabled }),
+    setLanConfig: (enabled: boolean, duration?: NearbyDuration) =>
+      invoke<LanSettings>("set_lan_config", { enabled, duration }),
   };
 }
 
@@ -594,6 +598,12 @@ function httpApi() {
           hasToken: true,
           cloudflaredInstalled: true,
         },
+        lan: {
+          enabled: false,
+          duration: "until_off",
+          port: 7834,
+          advertised: false,
+        },
         remoteLoginReady: true,
       }) as AppSettings,
     listOcrEngines: async () => [] as EngineInfo[],
@@ -620,6 +630,7 @@ function httpApi() {
     revokeSession: async () => requireMacApp("Managing sessions"),
     setRemoteCredentials: async () => requireMacApp("Saving cloud credentials"),
     setRemoteConfig: async () => requireMacApp("Changing remote access"),
+    setLanConfig: async () => requireMacApp("Changing local network access"),
   };
 }
 

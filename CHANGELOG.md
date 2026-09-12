@@ -4,9 +4,20 @@ All notable changes to Shelf are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Connect iPhone / iPad nearby session: opt-in LAN bind plus Bonjour `_shelf._tcp` (until off, 15 minutes, or 1 hour)
+- Native iPhone/iPad WKWebView shell (`ios/Shelf`) that tries Bonjour, then a LAN URL, then Cloudflare
+- PWA/browser connection manager: remembered LAN URL, then Cloudflare (Safari cannot browse Bonjour)
+- Installable web reader: Home Screen manifest, Apple meta tags, and PNG icons so iPhone and iPad can Add to Home Screen from the Cloudflare URL
+- Collections in the phone bottom navigation
+- Safe-area padding for the mobile tab bar, login, and reader chrome
+
 ### Changed
 
 - Cloud keep-awake uses only process-scoped `caffeinate` and no longer prompts for an administrator password via `pmset disablesleep`. Closed-lid sleep on battery remains an OS Energy setting.
+- Remote series page hides Favorite / reading-mode / version-preference controls that only work on the Mac
+- Remote sidebar no longer shows stubbed “0 series · 0 chapters” counts
 
 ## [0.1.0] — 2026-09-05
 

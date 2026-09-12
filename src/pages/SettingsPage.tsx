@@ -7,7 +7,7 @@ import { Select } from "../components/Select";
 import { api, invokeErrorMessage, isTauri, isTimeoutError, pickFolder } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { StatusMessage } from "../components/StatusMessage";
-import type { ActiveSession, EngineInfo, HouseholdUser, LibraryRoot, Series } from "../types";
+import type { ActiveSession, EngineInfo, HouseholdUser, LibraryRoot, NearbyDuration, Series } from "../types";
 import packageInfo from "../../package.json";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -67,6 +67,8 @@ export function SettingsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [remoteError, setRemoteError] = useState<string | null>(null);
+  const [lanError, setLanError] = useState<string | null>(null);
+  const [lanDuration, setLanDuration] = useState<NearbyDuration>("until_off");
   const availableOcrEngines = ocrEngines.filter((engine) => engine.available);
   const availableTranslators = translators.filter((translator) => translator.available);
 
@@ -124,13 +126,17 @@ export function SettingsPage() {
   }, [settings?.remote.configuredHostname]);
 
   useEffect(() => {
+    if (settings?.lan.duration) setLanDuration(settings.lan.duration);
+  }, [settings?.lan.duration]);
+
+  useEffect(() => {
     if (!isTauri()) return;
-    if (!settings?.remote.enabled && !settings?.remote.running) return;
+    if (!settings?.remote.enabled && !settings?.remote.running && !settings?.lan.enabled) return;
     const id = window.setInterval(() => {
       void refreshSettings();
     }, 1500);
     return () => window.clearInterval(id);
-  }, [settings?.remote.enabled, settings?.remote.running, refreshSettings]);
+  }, [settings?.remote.enabled, settings?.remote.running, settings?.lan.enabled, refreshSettings]);
 
   if (!isTauri()) {
     return (
@@ -452,6 +458,110 @@ export function SettingsPage() {
                 <Kbd>{item.keys}</Kbd>
               </div>
             ))}
+          </div>
+        </Section>
+
+        <Section title="Connect iPhone / iPad">
+          <p className="mb-3 text-sm text-muted">
+            Off until you start a nearby session. That binds the library on your Wi-Fi and advertises
+            it with Bonjour. Clients try, in order: <span className="text-text">Bonjour</span> (iPhone
+            / iPad app), then the <span className="text-text">LAN URL</span> (Windows, Android, Linux,
+            or Safari), then <span className="text-text">Cloudflare</span> when local fails. Open Shelf
+            on this Mac → Connect iPhone / iPad → open the phone app → pick this Mac. LAN is HTTP on
+            your network and still needs a household password. Cloudflare stays HTTPS for remote. A
+            sleeping Mac cannot serve or advertise.
+          </p>
+          <Row label="Stay on">
+            <Select
+              aria-label="How long to stay discoverable"
+              value={lanDuration}
+              onChange={(e) => setLanDuration(e.target.value as NearbyDuration)}
+              className="w-48 bg-surface py-1"
+              disabled={busyAction === "lan"}
+            >
+              <option value="until_off">Until I turn it off</option>
+              <option value="15m">15 minutes</option>
+              <option value="60m">1 hour</option>
+            </Select>
+          </Row>
+          {settings?.lan.localUrl && (
+            <div className="flex items-center gap-4 py-1.5">
+              <span className="w-20 shrink-0 text-sm text-muted">LAN URL</span>
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span className="min-w-0 flex-1 truncate text-sm text-accent">{settings.lan.localUrl}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 px-1.5"
+                  aria-label="Copy local link"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(settings.lan.localUrl ?? "").then(
+                      () => setNotice("Copied."),
+                      () => setLanError("Could not copy."),
+                    );
+                  }}
+                >
+                  <Copy size={14} />
+                </Button>
+              </div>
+            </div>
+          )}
+          {settings?.lan.enabled && settings.lan.qrDataUrl && (
+            <img src={settings.lan.qrDataUrl} alt="LAN QR for browsers without Bonjour" className="mt-2 h-24 w-24 rounded bg-white p-1" />
+          )}
+          {settings?.lan.enabled && (
+            <p className="mt-2 text-xs text-muted">
+              {settings.lan.advertised
+                ? `Bonjour on · _shelf._tcp${settings.lan.hostname ? ` · ${settings.lan.hostname}.local` : ""}`
+                : "Starting Bonjour…"}
+              {settings.lan.expiresAt
+                ? ` · until ${new Date(settings.lan.expiresAt).toLocaleTimeString()}`
+                : " · until you stop"}
+            </p>
+          )}
+          {lanError && (
+            <StatusMessage tone="error" live className="mt-3">
+              {lanError}
+            </StatusMessage>
+          )}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                const enabling = !settings?.lan.enabled;
+                if (enabling && !(settings?.remoteLoginReady || ownerPassword.trim().length >= 8)) {
+                  setLanError("Set an owner password first.");
+                  return;
+                }
+                setBusyAction("lan");
+                setNotice(null);
+                setError(null);
+                setLanError(null);
+                void (async () => {
+                  try {
+                    if (enabling && ownerPassword.trim().length >= 8) {
+                      await persistCloud();
+                    }
+                    await api.setLanConfig(enabling, lanDuration);
+                    await refreshSettings();
+                    setNotice(enabling ? "Nearby session on. The iPhone app can find this Mac." : "Nearby session off.");
+                  } catch (error) {
+                    const message = isTimeoutError(error)
+                      ? "Timed out."
+                      : invokeErrorMessage(error, "Could not update nearby connections.");
+                    setLanError(message);
+                    setError(message);
+                    await refreshSettings();
+                  } finally {
+                    setBusyAction(null);
+                  }
+                })();
+              }}
+              disabled={busyAction === "lan" || (!settings?.lan.enabled && !(settings?.remoteLoginReady || ownerPassword.trim().length >= 8))}
+            >
+              {busyAction === "lan" ? "Applying…" : settings?.lan.enabled ? "Stop nearby connections" : "Connect iPhone / iPad"}
+            </Button>
           </div>
         </Section>
 

@@ -58,3 +58,6 @@ rand = "0.8"
 async-trait = "0.1"
 zhconv = "0.3"
 keyring = { version = "3", features = ["apple-native"] }
+mdns-sd = "=0.11.5"
+if-addrs = "=0.13.3"
+hostname = "=0.4.1"

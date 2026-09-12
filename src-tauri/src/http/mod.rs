@@ -28,7 +28,8 @@ use crate::AppState;
 
 const MAX_UPLOAD_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_CHUNK_BYTES: u64 = 8 * 1024 * 1024;
-const CSP: &str = "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests";
+const CSP: &str = "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+const CSP_HTTPS: &str = "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests";
 
 #[derive(Clone)]
 pub struct HttpState {
@@ -39,6 +40,7 @@ pub struct CloudServer {
     shutdown: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     stopped: Mutex<Option<tokio::sync::oneshot::Receiver<()>>>,
     running: AtomicBool,
+    lan_bind: AtomicBool,
 }
 
 impl CloudServer {
@@ -47,10 +49,18 @@ impl CloudServer {
             shutdown: Mutex::new(None),
             stopped: Mutex::new(None),
             running: AtomicBool::new(false),
+            lan_bind: AtomicBool::new(false),
         }
     }
 
-    pub async fn start(&self, app: Arc<AppState>, port: u16) -> Result<String, String> {
+    pub fn lan_bind(&self) -> bool {
+        self.lan_bind.load(Ordering::Acquire)
+    }
+
+    pub async fn start(&self, app: Arc<AppState>, port: u16, lan_bind: bool) -> Result<String, String> {
+        if self.running() && self.lan_bind() == lan_bind {
+            return Ok(format!("http://127.0.0.1:{port}"));
+        }
         self.stop().await;
 
         let state = HttpState {
@@ -104,7 +114,11 @@ impl CloudServer {
             .layer(middleware::from_fn(security_headers))
             .with_state(state);
 
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let addr = if lan_bind {
+            SocketAddr::from(([0, 0, 0, 0], port))
+        } else {
+            SocketAddr::from(([127, 0, 0, 1], port))
+        };
         let listener = bind_with_retry(addr).await?;
         let url = format!("http://127.0.0.1:{port}");
 
@@ -113,6 +127,7 @@ impl CloudServer {
         *self.shutdown.lock() = Some(shutdown_tx);
         *self.stopped.lock() = Some(done_rx);
         self.running.store(true, Ordering::Release);
+        self.lan_bind.store(lan_bind, Ordering::Release);
 
         tokio::spawn(async move {
             axum::serve(
@@ -127,12 +142,13 @@ impl CloudServer {
             let _ = done_tx.send(());
         });
 
-        info!("Cloud service listening at {url}");
+        info!(lan_bind, "Library origin listening at {url}");
         Ok(url)
     }
 
     pub async fn stop(&self) {
         self.running.store(false, Ordering::Release);
+        self.lan_bind.store(false, Ordering::Release);
         if let Some(tx) = self.shutdown.lock().take() {
             let _ = tx.send(());
         }
@@ -292,7 +308,7 @@ async fn security_headers(req: Request, next: Next) -> Response {
     );
     headers.insert(
         header::HeaderName::from_static("content-security-policy"),
-        HeaderValue::from_static(CSP),
+        HeaderValue::from_static(if https { CSP_HTTPS } else { CSP }),
     );
     if https {
         headers.insert(
@@ -335,7 +351,8 @@ async fn host_guard(State(state): State<HttpState>, req: Request, next: Next) ->
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     let configured = configured_public_host(&state);
-    if host_allowed(host, configured.as_deref()) {
+    let lan = current_lan_identity(&state);
+    if crate::lan::host_allowed(host, configured.as_deref(), lan.as_ref()) {
         next.run(req).await
     } else {
         (
@@ -346,20 +363,12 @@ async fn host_guard(State(state): State<HttpState>, req: Request, next: Next) ->
     }
 }
 
-fn host_allowed(host: &str, configured: Option<&str>) -> bool {
-    let host = host
-        .split(':')
-        .next()
-        .unwrap_or(host)
-        .trim()
-        .to_ascii_lowercase();
-    if host.is_empty() {
-        return false;
+fn current_lan_identity(state: &HttpState) -> Option<crate::lan::LanIdentity> {
+    if crate::lan::enabled(&state.app.db) {
+        Some(state.app.lan.identity())
+    } else {
+        None
     }
-    if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
-        return true;
-    }
-    configured.is_some_and(|expected| crate::tunnel::host_matches_configured(&host, expected))
 }
 
 async fn session_guard(State(state): State<HttpState>, mut req: Request, next: Next) -> Response {
@@ -392,9 +401,20 @@ async fn session_guard(State(state): State<HttpState>, mut req: Request, next: N
     }
 }
 
-async fn health(State(state): State<HttpState>) -> impl IntoResponse {
+async fn health(State(state): State<HttpState>, headers: HeaderMap) -> impl IntoResponse {
     let login_ready = state.app.db.owner_password_set().unwrap_or(false);
-    Json(serde_json::json!({ "status": "ok", "loginReady": login_ready }))
+    let lan_on = crate::lan::enabled(&state.app.db);
+    let host = request_host(&headers);
+    let identity = current_lan_identity(&state);
+    let on_lan = identity
+        .as_ref()
+        .is_some_and(|id| id.matches_host(&host));
+    Json(serde_json::json!({
+        "status": "ok",
+        "loginReady": login_ready,
+        "lan": lan_on,
+        "localUrl": if on_lan { identity.map(|id| id.url) } else { None::<String> },
+    }))
 }
 
 async fn login(State(state): State<HttpState>, req: Request) -> Result<Response, ApiError> {
@@ -1300,8 +1320,10 @@ fn mime_guess(path: &FsPath) -> &'static str {
         Some("svg") => "image/svg+xml",
         Some("webp") => "image/webp",
         Some("png") => "image/png",
+        Some("ico") => "image/x-icon",
         Some("woff2") => "font/woff2",
         Some("json") => "application/json",
+        Some("webmanifest") => "application/manifest+json",
         Some("html") => "text/html; charset=utf-8",
         _ => "application/octet-stream",
     }
@@ -1383,6 +1405,17 @@ mod tests {
         assert!(safe_static_file(&dir, "/ok.js").is_some());
         assert!(safe_static_file(&dir, "/../ok.js").is_none());
         assert!(safe_static_file(&dir, "/foo/../../etc/passwd").is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn spa_serves_webmanifest_with_manifest_content_type() {
+        let dir = std::env::temp_dir().join(format!("shelf-manifest-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("manifest.webmanifest"), r#"{"name":"Shelf"}"#).unwrap();
+        let (mime, bytes) = safe_static_file(&dir, "/manifest.webmanifest").expect("manifest");
+        assert_eq!(mime, "application/manifest+json");
+        assert_eq!(bytes, br#"{"name":"Shelf"}"#);
         let _ = fs::remove_dir_all(&dir);
     }
 
