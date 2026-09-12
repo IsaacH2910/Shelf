@@ -54,7 +54,7 @@ export function SettingsPage() {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [ownerPassword, setOwnerPassword] = useState("");
-  const [remoteHostname, setRemoteHostname] = useState("isaach2910.dpdns.org");
+  const [remoteHostname, setRemoteHostname] = useState("");
   const [tunnelToken, setTunnelToken] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
@@ -480,7 +480,7 @@ export function SettingsPage() {
               <Input
                 value={remoteHostname}
                 onChange={(e) => setRemoteHostname(e.target.value)}
-                placeholder="example.com"
+                placeholder="shelf.example.com"
                 autoComplete="off"
                 spellCheck={false}
                 aria-label="Public hostname"

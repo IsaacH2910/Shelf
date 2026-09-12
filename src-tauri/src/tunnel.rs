@@ -10,9 +10,6 @@ use tracing::{info, warn};
 const KEYRING_SERVICE: &str = "com.isaach.shelf";
 const KEYRING_ACCOUNT: &str = "cloudflare-tunnel-token";
 
-pub const HOSTNAME: &str = "isaach2910.dpdns.org";
-pub const TUNNEL_TOKEN: &str = "eyJhIjoiYWU3YmE1OWE0Mzg1ZDgxOTg5OWNjOTVhYzY5ZDRlMjUiLCJ0IjoiNzVkYzY1NTctMTk2Ni00Y2QzLTk2ZTAtNmNmZDM3YzhhMzNhIiwicyI6Ik1HSTJZVEV4WkRVdFpXRmhaUzAwTWpNMUxUazFPVEV0WldRNE1HVmxZVFUwTmpOaSJ9";
-
 #[derive(Clone)]
 enum TunnelCmd {
     Named { token: String },
@@ -295,18 +292,14 @@ fn keychain_entry() -> Result<keyring::Entry, String> {
         .map_err(|e| format!("Could not open the keychain: {e}"))
 }
 
-/// Hostname from local settings, then `SHELF_TUNNEL_HOSTNAME`, then the compiled host.
+/// Hostname from local settings, then `SHELF_TUNNEL_HOSTNAME`. No compiled fallback.
 pub fn resolve_hostname(stored: Option<&str>) -> Option<String> {
     if let Some(host) = stored.and_then(|value| normalize_hostname(value).ok()) {
         return Some(host);
     }
-    if let Some(host) = std::env::var("SHELF_TUNNEL_HOSTNAME")
+    std::env::var("SHELF_TUNNEL_HOSTNAME")
         .ok()
         .and_then(|value| normalize_hostname(&value).ok())
-    {
-        return Some(host);
-    }
-    normalize_hostname(HOSTNAME).ok()
 }
 
 pub fn load_token() -> Result<Option<String>, String> {
@@ -315,10 +308,6 @@ pub fn load_token() -> Result<Option<String>, String> {
         if !token.is_empty() {
             return Ok(Some(token));
         }
-    }
-    let hardcoded = TUNNEL_TOKEN.trim();
-    if !hardcoded.is_empty() {
-        return Ok(Some(hardcoded.to_string()));
     }
     match keychain_entry()?.get_password() {
         Ok(token) => {
@@ -362,7 +351,7 @@ pub fn start_supervisor(manager: Arc<TunnelManager>) {
 mod tests {
     use super::{
         host_matches_configured, looks_like_tunnel_ready, normalize_hostname, resolve_hostname,
-        strip_ansi, HOSTNAME,
+        strip_ansi,
     };
 
     #[test]
@@ -412,7 +401,13 @@ mod tests {
             resolve_hostname(Some("https://shelf.example.com")).as_deref(),
             Some("shelf.example.com")
         );
-        assert_eq!(resolve_hostname(Some("")).as_deref(), Some(HOSTNAME));
-        assert_eq!(resolve_hostname(None).as_deref(), Some(HOSTNAME));
+        let previous = std::env::var("SHELF_TUNNEL_HOSTNAME").ok();
+        std::env::remove_var("SHELF_TUNNEL_HOSTNAME");
+        assert_eq!(resolve_hostname(Some("")).as_deref(), None);
+        assert_eq!(resolve_hostname(None).as_deref(), None);
+        match previous {
+            Some(value) => std::env::set_var("SHELF_TUNNEL_HOSTNAME", value),
+            None => {}
+        }
     }
 }
